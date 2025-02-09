@@ -1,23 +1,25 @@
 from fastapi import FastAPI
 from enum import Enum
 
+import response_model_examples
+from pydantic_classes import Item
+import items
+
 app = FastAPI()
-main_lst = []
 
+app.include_router(items.router)
+app.include_router(response_model_examples.router)
 
+shared_data = {}
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Welcome to LOL items API"}
 
 
 @app.get("/hello/{name}")
 async def say_hello(name: str):
     return {"message": f"Hello {name}"}
-
-@app.post("/item/{item_id}")
-async def say_item(item_id: Dict):
-
 
 class ModelName(str, Enum):
     alexnet = "alexnet"
@@ -34,3 +36,27 @@ async def get_model(model_name: ModelName):
         return {"model_name": model_name, "message": "LeCNN all the images"}
 
     return {"model_name": model_name, "message": "Have some residuals"}
+
+@app.get("items_opt/{item_id}", response_model=Item)
+async def read_item(item_id: str, q: str | None = None, short: bool = False,):
+    item = {"item_id": item_id}
+    if q:
+        item.update({"q": q})
+    if not short:
+        item.update(
+            {"description": "This is an amazing item that has a long description"}
+        )
+    return item
+
+@app.get("/users/{user_id}/items/{item_id}")
+async def read_user_item(
+    user_id: int, item_id: str, q: str | None = None, short: bool = False
+):
+    item = {"item_id": item_id, "owner_id": user_id}
+    if q:
+        item.update({"q": q})
+    if not short:
+        item.update(
+            {"description": "This is an amazing item that has a long description"}
+        )
+    return item
