@@ -1,3 +1,5 @@
+from typing import Optional, Set
+
 from data_base.database_service import DatabaseService
 from pydantic_classes import Item
 from data_base.sqlalchemy_db import BDItem, BDStat, Base
@@ -68,10 +70,18 @@ class DatabaseServiceImpl(DatabaseService):
         except exc.SQLAlchemyError:
             return False
 
-    def get_all(self) -> set:
+    def get_all(self, stats: Optional[Set[str]] = None, price: Optional[tuple[int, bool]] = None) -> set:
         try:
             with Session(self.engine) as session:
-                stmt = select(BDItem.name)
+                stmt = (
+                    select(BDItem.name)
+                    .join(BDStat, BDStat.item_name == BDItem.name)
+                )
+                if price is not None:
+                    stmt = stmt.where(BDItem.price >= price[0]) if price[1] else stmt = stmt.where(BDItem.price < price[0])
+                if stats is not None:
+                    for stat_name in stats:
+                        stmt = stmt.where(BDStat.name in stats)
                 bd_items = session.execute(stmt).all()
                 items_set = set()
                 for bd_item in bd_items:
