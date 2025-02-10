@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
 
-from data_base.database_provider import database_provider, DatabaseProvider, get_dict_db_service, get_sql_db_service
+from data_base.database_provider import database_provider
 from data_base.database_service import DatabaseService
 from pydantic_classes import Item
-from data_base.database_service_impl_as_dict import get_db_service,DatabaseServiceImplAsDict
 
 router = APIRouter(
     prefix="/items",

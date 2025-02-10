@@ -17,7 +17,7 @@ class BDItem(Base):
     price: Mapped[Optional[float]]
     sell_price: Mapped[Optional[float]]
     stats: Mapped[List["BDStat"]] = relationship(
-        back_populates="items", cascade="all, delete-orphan"
+        back_populates="item", cascade="all, delete-orphan"
     )
     def __repr__(self) -> str:
         return f"Item(Name={self.name!r}, Description={self.description!r}, Price={self.price!r}, Sell price={self.sell_price!r})"
@@ -27,7 +27,7 @@ class BDStat(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     value: Mapped[int]
-    item_id: Mapped[str] = mapped_column(ForeignKey("items.name"))
+    item_name: Mapped[str] = mapped_column(ForeignKey("items.name"))
     item: Mapped["BDItem"] = relationship(back_populates="stats")
     def __repr__(self) -> str:
-        return f"Stat(id={self.id!r}, Name={self.name!r}, Value={self.value!r}, Item id={self.item_id!r})"
+        return f"Stat(id={self.id!r}, Name={self.name!r}, Value={self.value!r}, Item name={self.item_name!r})"
