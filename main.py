@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from enum import Enum
 
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 import response_model_examples
 from pydantic_classes import Item
 import items
@@ -60,3 +64,10 @@ async def read_user_item(
             {"description": "This is an amazing item that has a long description"}
         )
     return item
+
+@app.exception_handler(SQLAlchemyError)
+async def unicorn_exception_handler(request: Request, exc: SQLAlchemyError):
+    return JSONResponse(
+        status_code=500,
+        content={"message": f"{exc}"},
+    )
