@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Annotated, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Annotated, Optional, Set, List
 
 from data_base.database_provider import database_provider
 from data_base.database_service import DatabaseService
@@ -28,10 +28,11 @@ async def update_item(item_id: str, cur_item: Item, database_service: Annotated[
 
 @router.get("/")
 async def read_all_items(database_service: Annotated[DatabaseService, Depends(database_provider)],
-                         stats: Optional[Set[str]] = None,
+                         stats: Annotated[Optional[List[str]], Query()] = None,
                          price: Optional[int] = None,
                          price_greater_than: Optional[bool] = None):
-    items = database_service.get_all(stats,(price, price_greater_than))
+    stats_set: Optional[Set[str]] = set(stats) if stats else None
+    items = database_service.get_all(stats_set,(price, price_greater_than))
     json = {}
     for cur_item in items:
         json[cur_item] = cur_item

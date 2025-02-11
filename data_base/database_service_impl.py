@@ -4,7 +4,7 @@ from data_base.database_service import DatabaseService
 from pydantic_classes import Item
 from data_base.sqlalchemy_db import BDItem, BDStat, Base
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, select, exc
+from sqlalchemy import create_engine, select, exc, and_
 
 
 class DatabaseServiceImpl(DatabaseService):
@@ -72,20 +72,30 @@ class DatabaseServiceImpl(DatabaseService):
 
     def get_all(self, stats: Optional[Set[str]] = None, price: Optional[tuple[int, bool]] = None) -> set:
         try:
-            with Session(self.engine) as session:
-                stmt = (
-                    select(BDItem.name)
-                    .join(BDStat, BDStat.item_name == BDItem.name)
-                )
-                if price is not None:
-                    stmt = stmt.where(BDItem.price >= price[0]) if price[1] else stmt = stmt.where(BDItem.price < price[0])
-                if stats is not None:
+            with (Session(self.engine) as session):
+                stmt = select(BDItem.name)
+                if price[0] is not None:
+                    if price[1]:
+                        stmt = stmt.where(BDItem.price >= price[0])
+                    else:
+                        stmt = stmt.where(BDItem.price < price[0])
+                if stats is not None and len(stats) > 0:
+                    conditions = []
                     for stat_name in stats:
-                        stmt = stmt.where(BDStat.name in stats)
+                        subquery = (
+                            select(BDItem.name)
+                            .join(BDStat, BDStat.item_name == BDItem.name)
+                            .where(BDStat.name == stat_name)
+                            .exists()
+                        )
+                        conditions.append(subquery)
+
+                    if conditions:
+                        stmt = stmt.where(and_(*conditions))
                 bd_items = session.execute(stmt).all()
                 items_set = set()
-                for bd_item in bd_items:
-                    items_set.add(bd_item.name)
+                for item in bd_items:
+                    items_set.add(item.name)
                 return items_set
         except exc.SQLAlchemyError as e:
             raise e
