@@ -79,19 +79,12 @@ class DatabaseServiceImpl(DatabaseService):
                         stmt = stmt.where(BDItem.price >= price[0])
                     else:
                         stmt = stmt.where(BDItem.price < price[0])
-                if stats is not None and len(stats) > 0:
-                    conditions = []
-                    for stat_name in stats:
-                        subquery = (
-                            select(BDItem.name)
-                            .join(BDStat, BDStat.item_name == BDItem.name)
-                            .where(BDStat.name == stat_name)
-                            .exists()
-                        )
-                        conditions.append(subquery)
 
-                    if conditions:
-                        stmt = stmt.where(and_(*conditions))
+                if stats is not None and len(stats) > 0:
+                    stat_conditions = [BDItem.name.in_(select(BDStat.item_name).where(BDStat.name == stat)) for stat in
+                                       stats]
+                    stmt = stmt.where(and_(*stat_conditions))
+
                 bd_items = session.execute(stmt).all()
                 items_set = set()
                 for item in bd_items:
