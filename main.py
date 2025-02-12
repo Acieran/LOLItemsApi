@@ -66,7 +66,7 @@ async def read_user_item(
     return item
 
 @app.exception_handler(SQLAlchemyError)
-async def unicorn_exception_handler(request: Request, exc: SQLAlchemyError):
+async def sqlalchemyerror_exception_handler(request: Request, exc: SQLAlchemyError):
     return JSONResponse(
         status_code=500,
         content={"message": f"{exc}"},

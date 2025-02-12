@@ -26,9 +26,12 @@ async def read_item(item_name: str, database_service: Annotated[DatabaseService,
 async def create_item(cur_item: Item, database_service: Annotated[DatabaseService, Depends(database_provider)]):
     return database_service.create(cur_item)
 
-@router.put("/{item_id}")
-async def update_item(item_id: str, cur_item: Item, database_service: Annotated[DatabaseService, Depends(database_provider)]):
-    return database_service.update(item_id, cur_item)
+@router.put("/{item_name}")
+async def update_item(item_name: str, cur_item: Item, database_service: Annotated[DatabaseService, Depends(database_provider)]):
+    try:
+        return database_service.update(item_name, cur_item)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Item not found")
 
 @router.get("/")
 async def read_all_items(database_service: Annotated[DatabaseService, Depends(database_provider)],

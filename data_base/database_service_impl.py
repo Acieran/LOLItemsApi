@@ -50,6 +50,8 @@ class DatabaseServiceImpl(DatabaseService):
                     .where(BDItem.name == name)
                 )
                 db_item = session.scalars(stmt).first()
+                # if not db_item:
+                #     raise No
                 for attr in ['name', 'description', 'price', 'sell_price']:
                     setattr(db_item, attr, getattr(item, attr))
                 db_item.stats = []
