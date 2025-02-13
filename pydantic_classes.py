@@ -1,5 +1,6 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class Stats(str, Enum):
     armor = "Armor"
@@ -9,8 +10,8 @@ class Stats(str, Enum):
     omni_vamp = "Omni Vamp"
 
 class Item(BaseModel):
-    name: str
+    name: str = Field(...,max_length=30)
     stats: dict[Stats, int]
-    description: str | None = None
-    price: float
-    sell_price: float
+    description: str | None = Field(None, max_length=1000)
+    price: float = Field(..., ge=0)
+    sell_price: float = Field(..., lt=price)
