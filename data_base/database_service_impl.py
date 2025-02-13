@@ -1,5 +1,8 @@
 from typing import Optional, Set
 
+from fastapi import HTTPException
+from starlette import status
+
 from data_base.database_service import DatabaseService
 from pydantic_classes import Item
 from data_base.sqlalchemy_db import BDItem, BDStat, Base
@@ -28,18 +31,23 @@ class DatabaseServiceImpl(DatabaseService):
         return item.name
 
     def get(self, name: str) -> Item:
-        with Session(self.engine) as session:
-            stmt = (
-                select(BDItem,BDStat)
-                .join(BDStat, BDStat.item_name == BDItem.name)
-                .where(BDItem.name == name)
-            )
-            db_item = session.scalars(stmt).first()
-            item = Item(name=db_item.name, description=db_item.description,
-                        price=db_item.price, sell_price=db_item.sell_price, stats={})
-            for db_stat in db_item.stats:
-                item.stats[db_stat.name] = db_stat.value
-        return item
+        try:
+            with Session(self.engine) as session:
+                stmt = (
+                    select(BDItem,BDStat)
+                    .join(BDStat, BDStat.item_name == BDItem.name)
+                    .where(BDItem.name == name)
+                )
+                db_item = session.scalars(stmt).first()
+                if not db_item:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+                item = Item(name=db_item.name, description=db_item.description,
+                            price=db_item.price, sell_price=db_item.sell_price, stats={})
+                for db_stat in db_item.stats:
+                    item.stats[db_stat.name] = db_stat.value
+            return item
+        except exc.SQLAlchemyError as e:
+            raise e
 
     def update(self, name: str, item: Item) -> bool:
         try:
@@ -50,8 +58,8 @@ class DatabaseServiceImpl(DatabaseService):
                     .where(BDItem.name == name)
                 )
                 db_item = session.scalars(stmt).first()
-                # if not db_item:
-                #     raise No
+                if not db_item:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
                 for attr in ['name', 'description', 'price', 'sell_price']:
                     setattr(db_item, attr, getattr(item, attr))
                 db_item.stats = []
@@ -59,18 +67,20 @@ class DatabaseServiceImpl(DatabaseService):
                     db_item.stats.append(BDStat(name=stat_name, value=stat_value))
                 session.commit()
             return True
-        except exc.SQLAlchemyError:
-            return False
+        except exc.SQLAlchemyError as e:
+            raise e
 
     def delete(self, name: str) -> bool:
         try:
             with Session(self.engine) as session:
-                bd_item = session.get(BDItem, name)
-                session.delete(bd_item)
+                db_item = session.get(BDItem, name)
+                if not db_item:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+                session.delete(db_item)
                 session.commit()
             return True
-        except exc.SQLAlchemyError:
-            return False
+        except exc.SQLAlchemyError as e:
+            raise e
 
     def get_all(self, stats: Optional[Set[str]] = None, price: Optional[tuple[int, bool]] = None) -> set:
         try:
@@ -88,6 +98,8 @@ class DatabaseServiceImpl(DatabaseService):
                     stmt = stmt.where(and_(*stat_conditions))
 
                 bd_items = session.execute(stmt).all()
+                if not bd_items:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
                 items_set = set()
                 for item in bd_items:
                     items_set.add(item.name)
