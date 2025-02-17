@@ -30,13 +30,13 @@ class DatabaseServiceImpl(DatabaseService):
             session.commit()
         return item.name
 
-    def get(self, name: str) -> Item:
+    def get(self, item_id: str) -> Item:
         try:
             with Session(self.engine) as session:
                 stmt = (
                     select(BDItem,BDStat)
                     .join(BDStat, BDStat.item_name == BDItem.name)
-                    .where(BDItem.name == name)
+                    .where(BDItem.name == item_id)
                 )
                 db_item = session.scalars(stmt).first()
                 if not db_item:
@@ -49,13 +49,13 @@ class DatabaseServiceImpl(DatabaseService):
         except exc.SQLAlchemyError as e:
             raise e
 
-    def update(self, name: str, item: Item) -> bool:
+    def update(self, item_id: str, item: Item) -> Item:
         try:
             with Session(self.engine) as session:
                 stmt = (
                     select(BDItem,BDStat)
                     .join(BDStat, BDStat.item_name == BDItem.name)
-                    .where(BDItem.name == name)
+                    .where(BDItem.name == item_id)
                 )
                 db_item = session.scalars(stmt).first()
                 if not db_item:
@@ -63,17 +63,20 @@ class DatabaseServiceImpl(DatabaseService):
                 for attr in ['name', 'description', 'price', 'sell_price']:
                     setattr(db_item, attr, getattr(item, attr))
                 db_item.stats = []
+                item = Item(name=db_item.name, description=db_item.description,
+                            price=db_item.price, sell_price=db_item.sell_price, stats={})
                 for stat_name, stat_value in item.stats.items():
                     db_item.stats.append(BDStat(name=stat_name, value=stat_value))
+                    item.stats[stat_name] = stat_value
                 session.commit()
-            return True
+            return item
         except exc.SQLAlchemyError as e:
             raise e
 
-    def delete(self, name: str, cls: Type[DeclarativeBase]) -> bool:
+    def delete(self, item_id: str, cls: Type[DeclarativeBase]) -> bool:
         try:
             with Session(self.engine) as session:
-                db_item = session.get(cls, name)
+                db_item = session.get(cls, item_id)
                 if not db_item:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
                 session.delete(db_item)
@@ -137,7 +140,7 @@ class DatabaseServiceImpl(DatabaseService):
         except exc.SQLAlchemyError as e:
             raise e
 
-    def update_user(self, username: str, user: User | UserNoPass) -> bool:
+    def update_user(self, username: str, user: User | UserNoPass) -> User:
         try:
             with Session(self.engine) as session:
                 stmt = (
@@ -152,6 +155,7 @@ class DatabaseServiceImpl(DatabaseService):
                 for attr in ['user_name', 'active']:
                     setattr(db_item, attr, getattr(user, attr))
                 session.commit()
-            return True
+                user = User(user_name=db_item.user_name, password=db_item.password, active=db_item.active)
+            return user
         except exc.SQLAlchemyError as e:
             raise e

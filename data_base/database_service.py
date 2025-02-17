@@ -15,7 +15,7 @@ class DatabaseService(ABC):
     def get(self, name: str) -> Item: pass
 
     @abstractmethod
-    def update(self, name: str, item: Item) -> bool: pass
+    def update(self, name: str, item: Item) -> Item: pass
 
     @abstractmethod
     def delete(self, name: str, cls: Type[DeclarativeBase]) -> bool: pass
@@ -30,4 +30,4 @@ class DatabaseService(ABC):
     def create_user(self, user: User) -> str: pass
 
     @abstractmethod
-    def update_user(self, username: str, user: User | UserNoPass) -> bool: pass
+    def update_user(self, username: str, user: User | UserNoPass) -> User: pass

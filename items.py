@@ -7,6 +7,7 @@ from starlette import status
 import security
 from data_base.database_provider import database_provider
 from data_base.database_service import DatabaseService
+from pydantic_classes import SellPriceValidationError
 from data_base.sqlalchemy_db_classes import BDItem
 from pydantic_classes import Item, Stats, UserNoPass
 
@@ -28,12 +29,15 @@ async def read_item(item_name: str, database_service: Annotated[DatabaseService,
         ) from e
     except HTTPException:
         raise
-@router.post("/")
-async def create_item(cur_item: Item,
-                      database_service: Annotated[DatabaseService, Depends(database_provider)],
-                      current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
+
+async def _process_item(cur_item: Item, database_service: DatabaseService, item_name: str = None):
+    """
+    Helper function to create or update an item.
+    """
     try:
-        if current_user:
+        if item_name:
+            return database_service.update(item_name, cur_item)
+        else:
             return database_service.create(cur_item)
     except exc.SQLAlchemyError as e:
         print(f"Database error: {e}")
@@ -43,23 +47,21 @@ async def create_item(cur_item: Item,
         ) from e
     except HTTPException:
         raise
+    except SellPriceValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_item(cur_item: Item,
+                      database_service: Annotated[DatabaseService, Depends(database_provider)],
+                      current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
+    if current_user:
+        return _process_item(cur_item, database_service, cur_item.name)
 
-@router.put("/{item_name}")
+@router.put("/{item_name}", status_code=status.HTTP_200_OK)
 async def update_item(item_name: str, cur_item: Item,
                       database_service: Annotated[DatabaseService, Depends(database_provider)],
                       current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
-    try:
-        if current_user:
-            return database_service.update(item_name, cur_item)
-    except exc.SQLAlchemyError as e:
-        print(f"Database error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error occurred: {e}"
-        ) from e
-    except HTTPException:
-        raise
-
+    if current_user:
+        return _process_item(cur_item, database_service, item_name)
 @router.get("/")
 async def read_all_items(database_service: Annotated[DatabaseService, Depends(database_provider)],
                          stats: Annotated[Optional[List[str]], Query()] = None,
@@ -89,7 +91,7 @@ async def read_all_items(database_service: Annotated[DatabaseService, Depends(da
         json[cur_item] = cur_item
     return json
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_item(item_id: str,
                       database_service: Annotated[DatabaseService, Depends(database_provider)],
                       current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
