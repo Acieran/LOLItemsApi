@@ -1,6 +1,6 @@
 from typing import List
 from typing import Optional
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Boolean
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
@@ -31,3 +31,11 @@ class BDStat(Base):
     item: Mapped["BDItem"] = relationship(back_populates="stats")
     def __repr__(self) -> str:
         return f"Stat(id={self.id!r}, Name={self.name!r}, Value={self.value!r}, Item name={self.item_name!r})"
+
+class BDUser(Base):
+    __tablename__ = "users"
+    user_name: Mapped[str] = mapped_column(primary_key=True)
+    password: Mapped[str] = mapped_column(String())
+    active: Mapped[bool] = mapped_column(Boolean)
+    def __repr__(self) -> str:
+        return f"Username(id={self.user_name!r}, Active={self.active!r})"

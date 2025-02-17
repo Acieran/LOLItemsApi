@@ -1,12 +1,12 @@
-from typing import Optional, Set
+from typing import Optional, Set, Type
 
 from fastapi import HTTPException
 from starlette import status
 
 from data_base.database_service import DatabaseService
-from pydantic_classes import Item
-from data_base.sqlalchemy_db import BDItem, BDStat, Base
-from sqlalchemy.orm import Session
+from pydantic_classes import Item, User, UserNoPass
+from data_base.sqlalchemy_db_classes import BDItem, BDStat, Base, BDUser
+from sqlalchemy.orm import Session, DeclarativeBase
 from sqlalchemy import create_engine, select, exc, and_
 
 
@@ -70,10 +70,10 @@ class DatabaseServiceImpl(DatabaseService):
         except exc.SQLAlchemyError as e:
             raise e
 
-    def delete(self, name: str) -> bool:
+    def delete(self, name: str, cls: Type[DeclarativeBase]) -> bool:
         try:
             with Session(self.engine) as session:
-                db_item = session.get(BDItem, name)
+                db_item = session.get(cls, name)
                 if not db_item:
                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
                 session.delete(db_item)
@@ -104,5 +104,54 @@ class DatabaseServiceImpl(DatabaseService):
                 for item in bd_items:
                     items_set.add(item.name)
                 return items_set
+        except exc.SQLAlchemyError as e:
+            raise e
+
+    def get_user(self, username: str) -> User:
+        try:
+            with Session(self.engine) as session:
+                stmt = (
+                    select(BDUser)
+                    .where(BDUser.user_name == username)
+                )
+                db_item = session.scalars(stmt).first()
+                if not db_item:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with name - {username} not found")
+                user = User(user_name=db_item.user_name, password=db_item.password, active=db_item.active)
+            return user
+        except exc.SQLAlchemyError as e:
+            raise e
+
+    def create_user(self, user: User) -> str:
+        try:
+            with Session(self.engine) as session:
+                session.expire_on_commit = False
+                bd_user = BDUser(
+                    user_name=user.user_name,
+                    password=user.password,
+                    active=True
+                )
+                session.add(bd_user)
+                session.commit()
+            return bd_user.user_name
+        except exc.SQLAlchemyError as e:
+            raise e
+
+    def update_user(self, username: str, user: User | UserNoPass) -> bool:
+        try:
+            with Session(self.engine) as session:
+                stmt = (
+                    select(BDUser)
+                    .where(BDUser.user_name == username)
+                )
+                db_item = session.scalars(stmt).first()
+                if not db_item:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+                if user.password:
+                    db_item.password = user.password
+                for attr in ['user_name', 'active']:
+                    setattr(db_item, attr, getattr(user, attr))
+                session.commit()
+            return True
         except exc.SQLAlchemyError as e:
             raise e

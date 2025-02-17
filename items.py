@@ -4,9 +4,11 @@ from typing import Annotated, Optional, Set, List
 from sqlalchemy import exc
 from starlette import status
 
+import security
 from data_base.database_provider import database_provider
 from data_base.database_service import DatabaseService
-from pydantic_classes import Item, Stats
+from data_base.sqlalchemy_db_classes import BDItem
+from pydantic_classes import Item, Stats, UserNoPass
 
 router = APIRouter(
     prefix="/items",
@@ -27,9 +29,12 @@ async def read_item(item_name: str, database_service: Annotated[DatabaseService,
     except HTTPException:
         raise
 @router.post("/")
-async def create_item(cur_item: Item, database_service: Annotated[DatabaseService, Depends(database_provider)]):
+async def create_item(cur_item: Item,
+                      database_service: Annotated[DatabaseService, Depends(database_provider)],
+                      current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
     try:
-        return database_service.create(cur_item)
+        if current_user:
+            return database_service.create(cur_item)
     except exc.SQLAlchemyError as e:
         print(f"Database error: {e}")
         raise HTTPException(
@@ -40,9 +45,12 @@ async def create_item(cur_item: Item, database_service: Annotated[DatabaseServic
         raise
 
 @router.put("/{item_name}")
-async def update_item(item_name: str, cur_item: Item, database_service: Annotated[DatabaseService, Depends(database_provider)]):
+async def update_item(item_name: str, cur_item: Item,
+                      database_service: Annotated[DatabaseService, Depends(database_provider)],
+                      current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
     try:
-        return database_service.update(item_name, cur_item)
+        if current_user:
+            return database_service.update(item_name, cur_item)
     except exc.SQLAlchemyError as e:
         print(f"Database error: {e}")
         raise HTTPException(
@@ -82,9 +90,12 @@ async def read_all_items(database_service: Annotated[DatabaseService, Depends(da
     return json
 
 @router.delete("/{item_id}")
-async def delete_item(item_id: str, database_service: Annotated[DatabaseService, Depends(database_provider)]):
+async def delete_item(item_id: str,
+                      database_service: Annotated[DatabaseService, Depends(database_provider)],
+                      current_user: Annotated[UserNoPass, Depends(security.get_user_and_check_active)]):
     try:
-        return database_service.delete(item_id)
+        if current_user:
+            return database_service.delete(item_id,BDItem)
     except exc.SQLAlchemyError as e:
         print(f"Database error: {e}")
         raise HTTPException(
